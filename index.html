@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AI绘图工作台 Demo</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#12141a;color:#e8e8e8;font-family:system-ui, sans-serif;padding:20px;max-width:1200px;margin:0 auto}
+.container{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+@media(max-width:800px){.container{grid-template-columns:1fr}}
+.panel{background:#1e212b;padding:20px;border-radius:12px;border:1px solid #333642}
+textarea{width:100%;min-height:120px;background:#272a35;color:#fff;border:1px solid #444;border-radius:8px;padding:12px;font-size:14px;resize:vertical}
+select,input[type="file"]{width:100%;background:#272a35;color:#fff;border:1px solid #444;border-radius:8px;padding:10px;margin:8px 0}
+button{width:100%;padding:12px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-weight:bold;cursor:pointer;margin-top:10px}
+button:disabled{background:#334155;cursor:not-allowed}
+.result-img{max-width:100%;border-radius:8px;margin-top:12px}
+.loading{color:#94a3b8;margin:10px 0}
+</style>
+</head>
+<body>
+<h1>AI绘图工作台</h1>
+<div class="container">
+ <div class="panel">
+ <h3>参数设置</h3>
+ <div>
+ <label>选择模型</label>
+ <select id="modelSelect">
+ <option value="gpt-4o">GPT-4o(多模态对话)</option>
+ <option value="nano-banana-pro">Nano-Banana-Pro 生图</option>
+ </select>
+ </div>
+ <div>
+ <label>提示词</label>
+ <textarea id="prompt" placeholder="输入你的提示词，例如：日系少女，海边日落，胶片质感"></textarea>
+ </div>
+ <div>
+ <label>上传参考图(图生图)</label>
+ <input type="file" id="imgUpload" accept="image/*"/>
+ </div>
+ <div id="status" class="loading"></div>
+ <button id="submitBtn">提交生成</button>
+ </div>
+
+ <div class="panel">
+ <h3>生成结果</h3>
+ <div id="output"></div>
+ </div>
+</div>
+
+<script>
+const modelSelect = document.getElementById('modelSelect')
+const promptEl = document.getElementById('prompt')
+const imgUpload = document.getElementById('imgUpload')
+const submitBtn = document.getElementById('submitBtn')
+const statusEl = document.getElementById('status')
+const outputEl = document.getElementById('output')
+
+let imageBase64 = null
+
+imgUpload.addEventListener('change', async(e)=>{
+ const file = e.target.files[0]
+ if(!file) return
+ const reader = new FileReader()
+ reader.onload = ev=>{
+ imageBase64 = ev.target.result
+ }
+ reader.readAsDataURL(file)
+})
+
+submitBtn.onclick = async ()=>{
+ const prompt = promptEl.value.trim()
+ const model = modelSelect.value
+ if(!prompt){
+ statusEl.innerText="请输入提示词"
+ return
+ }
+ submitBtn.disabled=true
+ statusEl.innerText="正在提交任务…"
+ outputEl.innerHTML=""
+
+ try{
+ const payload = { prompt, model }
+ if(imageBase64) payload.image = imageBase64
+
+ const res = await fetch('/api/generate',{
+ method:'POST',
+ headers:{'Content-Type':'application/json'},
+ body:JSON.stringify(payload)
+ })
+ const json = await res.json()
+ if(!res.ok) throw new Error(json.error||'请求失败')
+
+ if(json.images && json.images.length>0){
+ statusEl.innerText="生成完成"
+ json.images.forEach(imgUrl=>{
+ const img = document.createElement('img')
+ img.src = imgUrl
+ img.className = 'result-img'
+ outputEl.appendChild(img)
+ })
+ }else{
+ statusEl.innerText=json.text||'无返回图片'
+ }
+ }catch(err){
+ statusEl.innerText="错误："+err.message
+ }finally{
+ submitBtn.disabled=false
+ }
+}
+</script>
+</body>
+</html>

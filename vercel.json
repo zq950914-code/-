@@ -1,0 +1,10 @@
+{
+  "build": {
+    "env": {
+      "VERCEL_TS_CONFIG": true
+    }
+  },
+  "routes": [
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
+}
