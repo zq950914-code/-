@@ -26,8 +26,15 @@ button:disabled{background:#334155;cursor:not-allowed}
  <div>
  <label>选择模型</label>
  <select id="modelSelect">
- <option value="gpt-4o">GPT-4o(多模态对话)</option>
- <option value="nano-banana-pro">Nano-Banana-Pro 生图</option>
+ <label>选择模型</label>
+<select id="modelSelect">
+  <option value="gpt-4o">GPT-4o(多模态对话)</option>
+  <option value="nano-banana-pro">Nano-Banana-Pro 生图</option>
+  <!-- 新增智谱官方模型，value严格匹配智谱官方名称 -->
+  <option value="glm-4">智谱GLM-4</option>
+  <option value="glm-3-turbo">智谱GLM-3-Turbo</option>
+  <option value="glm-4-flash">智谱GLM-4-Flash</option>
+</select>
  </select>
  </div>
  <div>
@@ -49,12 +56,53 @@ button:disabled{background:#334155;cursor:not-allowed}
 </div>
 
 <script>
-const modelSelect = document.getElementById('modelSelect')
-const promptEl = document.getElementById('prompt')
-const imgUpload = document.getElementById('imgUpload')
-const submitBtn = document.getElementById('submitBtn')
-const statusEl = document.getElementById('status')
-const outputEl = document.getElementById('output')
+// 安全fetch封装，兜底空响应、格式错误
+async function safeFetch(url, options) {
+  const res = await fetch(url, options);
+  if (!res.ok) throw new Error(`请求状态异常：${res.status}`);
+  const text = await res.text();
+  if (!text) throw new Error("后端接口返回空数据，请检查后端服务");
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    throw new Error("返回数据不是标准JSON：" + e.message);
+  }
+}// 提交按钮点击事件
+document.querySelector("button").addEventListener("click", async () => {
+  const modelVal = document.getElementById("modelSelect").value;
+  const promptVal = document.querySelector("textarea").value.trim();
+  const errDom = document.querySelector(".error-tip") || Object.assign(document.createElement("div"),{className:"error-tip",style:"color:#f66;margin:8px 0"});
+  document.querySelector(".panel").append(errDom);
+  errDom.textContent = "";
+
+  // 动态匹配接口地址
+  let targetApiUrl = "";
+  if (modelVal.startsWith("glm")) {
+    // 👉 这里改成你自己部署的后端智谱代理接口地址
+    targetApiUrl = "https://你的后端公网域名/api/zhipu/chat";
+  } else if (modelVal === "gpt-4o") {
+    targetApiUrl = "原有GPT接口地址";
+  } else if (modelVal === "nano-banana-pro") {
+    targetApiUrl = "原有生图接口地址";
+  }
+
+  try {
+    // 调用安全请求方法
+    const result = await safeFetch(targetApiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: modelVal,
+        prompt: promptVal
+        // 有图生图文件参数在这里补充 img: base64图片数据
+      })
+    });
+    // 正常渲染结果逻辑你原有代码保留即可
+    console.log("接口返回结果", result);
+  } catch (err) {
+    errDom.textContent = "生成失败：" + err.message;
+  }
+});
 
 let imageBase64 = null
 
